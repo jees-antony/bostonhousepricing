@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 app=Flask(__name__)
-## Load the model
+## Load the model from local dir
 regmodel=pickle.load(open('regmodel.pkl','rb'))
 scalar=pickle.load(open('scaling.pkl','rb'))
 @app.route('/')
