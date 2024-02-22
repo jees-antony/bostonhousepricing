@@ -3,5 +3,9 @@ scikit-learn
 pandas
 numpy
 matplotlib
-gunicorn
+uvicorn
+fastapi
+torch
+torchvision
+yolov7
 
