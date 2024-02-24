@@ -6,6 +6,5 @@ matplotlib
 uvicorn
 fastapi
 torch
-torchvision
-yolov7
+python-multipart
 
