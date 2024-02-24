@@ -1,33 +1,34 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from typing import List
-import torch
 from PIL import Image
 import numpy as np
 from io import BytesIO
 from pathlib import Path
+from ultralytics import YOLO
 
 app = FastAPI()
 
-# Load YOLOv5 model
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+# Load YOLOv8 pretrained model
+model = YOLO('best.pt')
 
-
+print("running from new app")
 def detect_objects(image):
     # Perform object detection
     results = model(image)
 
+    # Check if results is empty
+    if not results:
+        return None
+
     # Render bounding boxes on the image
-    image_with_boxes = results.render()[0]
+    rendered_images = [result.render()[0] for result in results]
 
-    # Convert numpy array to PIL Image
-    image_with_boxes = Image.fromarray(image_with_boxes)
+    # Convert numpy arrays to PIL Images
+    images_with_boxes = [Image.fromarray(image_with_boxes) for image_with_boxes in rendered_images]
 
-    return image_with_boxes
 
-@app.post("/uploadfile/")
-async def create_upload_file(file_image: UploadFile):
-    return {"filename": file_image.filename}
+    return images_with_boxes
 
 @app.post("/detect")
 async def detect_and_return_image(file: UploadFile = File(...)):
