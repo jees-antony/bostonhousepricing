@@ -8,4 +8,5 @@ fastapi
 ultralytics
 python-multipart
 opencv-python-headless
+opencv-python
 
