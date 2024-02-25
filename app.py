@@ -7,6 +7,9 @@ from io import BytesIO
 from pathlib import Path
 from ultralytics import YOLO
 
+import os
+os.environ['OPENCV_IO_ENABLE_JASPER'] = 'true'  # Set environment variable
+
 app = FastAPI()
 
 # Load YOLOv8 pretrained model
