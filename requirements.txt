@@ -5,7 +5,7 @@ numpy
 matplotlib
 uvicorn
 fastapi
-torch
-ultralytics
+# torch
+# ultralytics
 python-multipart
 
