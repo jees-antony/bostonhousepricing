@@ -5,7 +5,6 @@ numpy
 matplotlib
 uvicorn
 fastapi
-torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 ultralytics
 python-multipart
 
