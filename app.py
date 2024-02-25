@@ -10,7 +10,7 @@ from ultralytics import YOLO
 app = FastAPI()
 
 # Load YOLOv8 pretrained model
-model = YOLO('best.pt')
+model = YOLO('best (2).pt')
 print(model)
 
 print("running from new app")
