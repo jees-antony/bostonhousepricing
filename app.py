@@ -1,5 +1,6 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, UploadFile, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.templating import Jinja2Templates
 from typing import List
 from PIL import Image, ImageDraw
 import numpy as np
@@ -7,20 +8,31 @@ from io import BytesIO
 from pathlib import Path
 from ultralytics import YOLO
 from starlette.responses import StreamingResponse
+import json
+import base64
+# 
 
 import os
 os.environ['OPENCV_IO_ENABLE_JASPER'] = 'true'  # Set environment variable
 
 app = FastAPI()
-
+# Allo request from all origins -CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+templates = Jinja2Templates(directory="templates")
 # Load YOLOv8 pretrained model
 # model = YOLO('best (2).pt')
 
 print("running from new app")
 
 @app.get("/")
-async def root():
-    return "Home Page of the cocoa disease detect ml app"
+async def home(request: Request):
+    return templates.TemplateResponse("home.html", {"request": request})
 
 @app.post("/detect")
 async def detect_and_return_image(image_file: UploadFile = File(...)):
@@ -34,9 +46,13 @@ async def detect_and_return_image(image_file: UploadFile = File(...)):
     [[x1,y1,x2,y2,object_type,probability],..]
     """
     buf = await image_file.read()
-    boxes = detect_objects_on_image(Image.open(BytesIO(buf)))
+    boxes, class_prob = detect_objects_on_image(Image.open(BytesIO(buf)))
+    print(f'class proba {class_prob}')
     annotated_image = annotate_image(Image.open(BytesIO(buf)), boxes)
-    return save_annotated_image(annotated_image)
+    return {
+        "annotated_image": image_to_base64(annotated_image),
+        "class_prob": class_prob
+    }
 
 
 def detect_objects_on_image(image):
@@ -53,12 +69,14 @@ def detect_objects_on_image(image):
     results = model.predict(image)
     result = results[0]
     output = []
+    class_prob = []
     for box in result.boxes:
         x1, y1, x2, y2 = [round(x) for x in box.xyxy[0].tolist()]
         class_id = box.cls[0].item()
         prob = round(box.conf[0].item(), 2)
         output.append([x1, y1, x2, y2, result.names[class_id], prob])
-    return output
+        class_prob.append([result.names[class_id], prob])
+    return output, class_prob
 
 
 def annotate_image(image, boxes):
@@ -90,3 +108,8 @@ def save_annotated_image(image):
     image.save(output_buffer, format="PNG")
     output_buffer.seek(0)
     return StreamingResponse(output_buffer, media_type="image/png")
+
+def image_to_base64(image):
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode('utf-8')

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cocoa Disease Prediction AI App</title>
+</head>
+
+<body>
+    <h1>Cocoa Disease Prediction AI App</h1>
+    <div id="imageContainer">
+        <img id="annotatedImage" src="" alt="Annotated Image">
+    </div>
+    <div id="classProbabilities"></div>
+    <br>
+    <br>
+
+    <script>
+        async function fetchData() {
+            try {
+                const formData = new FormData();
+                formData.append('image_file', document.getElementById('imageFile').files[0]);
+
+                const response = await fetch('http://localhost:8000/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data');
+                }
+
+                // Handle the image response
+                const responseData = await response.json();
+                const annotatedImageUrl = `data:image/png;base64,${responseData.annotated_image}`;
+                document.getElementById('annotatedImage').src = annotatedImageUrl;
+
+                // Handle the class probabilities
+                const classProb = responseData.class_prob;
+                document.getElementById('classProbabilities').innerText = JSON.stringify(classProb);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+    </script>
+
+    <input type="file" id="imageFile">
+    <button onclick="fetchData()">Submit</button>
+</body>
+
+</html>
