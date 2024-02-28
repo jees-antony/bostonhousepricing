@@ -1,4 +1,4 @@
-# Boston House Pricing Prediction
+## Cocoa Disease prediction ML App
 
 ### Software And Tools Requirements
 
