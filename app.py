@@ -1,12 +1,27 @@
 from fastapi import FastAPI, File, UploadFile, Request
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from typing import List
 from PIL import Image
+import json
 from io import BytesIO
 import detect   #detect.py
+import uuid
+import os
+from databases import Database
 
-app = FastAPI()
+database = Database("sqlite:///cocoa-ml.db")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    #On Startup
+    await database.connect()
+    yield
+    #On Shutdown
+    await database.disconnect()
+
+app = FastAPI(lifespan=lifespan)
+
 
 # Allo request from all origins -CORS
 app.add_middleware(
@@ -34,10 +49,27 @@ async def detect_and_return_image(image_file: UploadFile = File(...)):
     boxes in format
     [[x1,y1,x2,y2,object_type,probability],..]
     """
+    
     buf = await image_file.read()
     boxes, class_prob = detect.detect_objects_on_image(Image.open(BytesIO(buf)))
     print(f'class proba {class_prob}')
     annotated_image = detect.annotate_image(Image.open(BytesIO(buf)), boxes)
+
+    image_uuid = uuid.uuid4()
+    image_path = str(image_uuid) + ".png"
+    image_path = os.path.join("images", image_path)
+    # save image as PNG
+    annotated_image.save(image_path)
+
+    # inser image file name and predictions into DB
+    prob_json = {}
+    for prob in class_prob:
+        prob_json[prob[0]] = prob[1]
+    prob_json = json.dumps(prob_json)
+    query = f"INSERT INTO predictions (image_file, predictions) VALUES ('{str(image_uuid)}','{prob_json}');"
+    print(query)
+    await database.execute(query=query)
+
     return {
         "annotated_image": detect.image_to_base64(annotated_image),
         "class_prob": class_prob
