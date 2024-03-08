@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cocoa Disease Prediction AI App</title>
+</head>
+
+<body>
+    <h1>Preditions Made</h1>
+    <ul id="predictionsList">
+        <!-- Predictions will be inserted here dynamically -->
+    </ul>
+    <div id="detailsContainer">
+        <!-- Details for selected prediction will be inserted here dynamically -->
+    </div>
+    
+    <script>
+        // Function to fetch predictions and populate the list
+        async function fetchPredictions() {
+            const response = await fetch('/api/predicted/');
+            const predictions = await response.json();
+            console.log(predictions)
+
+            const predictionsList = document.getElementById('predictionsList');
+            predictionsList.innerHTML = '';
+
+            predictions.forEach(prediction => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `<a href="#" onclick="fetchPredictionDetails(${prediction.id})">ID: ${prediction.id} - Predictions: ${prediction.predictions}</a>`;
+                predictionsList.appendChild(listItem);
+            });
+        }
+
+        // Function to fetch details for a specific prediction
+        async function fetchPredictionDetails(predictionId) {
+            const response = await fetch(`/prediction/${predictionId}`);
+            const details = await response.text();
+
+            const detailsContainer = document.getElementById('detailsContainer');
+            detailsContainer.innerHTML = details;
+        }
+
+        // Call fetchPredictions when the page loads
+        fetchPredictions();
+    </script>
+</body>
+
+</html>

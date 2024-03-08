@@ -10,6 +10,7 @@ import detect   #detect.py
 import uuid
 import os
 from databases import Database
+from pydantic import BaseModel
 
 database = Database("sqlite:///cocoa-ml.db")
 @asynccontextmanager
@@ -22,6 +23,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+class Prediction(BaseModel):
+    id: int
+    predictions: str
 
 # Allo request from all origins -CORS
 app.add_middleware(
@@ -31,6 +35,11 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+def fetch_predictions() -> list[Prediction]:
+    query = 'SELECT id, preds FROM pred_tb'
+    predictions = database.fetchall(query)
+    return [Prediction(id=row[0], predictions=row[1]) for row in predictions]
 
 templates = Jinja2Templates(directory="templates")
 
@@ -66,7 +75,7 @@ async def detect_and_return_image(image_file: UploadFile = File(...)):
     for prob in class_prob:
         prob_json[prob[0]] = prob[1]
     prob_json = json.dumps(prob_json)
-    query = f"INSERT INTO predictions (image_file, predictions) VALUES ('{str(image_uuid)}','{prob_json}');"
+    query = f"INSERT INTO pred_tb (image_file, preds) VALUES ('{str(image_uuid)}','{prob_json}');"
     print(query)
     await database.execute(query=query)
 
@@ -74,3 +83,12 @@ async def detect_and_return_image(image_file: UploadFile = File(...)):
         "annotated_image": detect.image_to_base64(annotated_image),
         "class_prob": class_prob
     }
+
+#for getting the predicted images list
+@app.get("/predicted/")
+async def detect_and_return_image(request: Request):
+    return templates.TemplateResponse("predictions.html", {"request": request})
+
+@app.get("/api/predicted/")
+async def detect_and_return_image(response_model=list[Prediction]):
+    return fetch_predictions()
