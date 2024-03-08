@@ -36,10 +36,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def fetch_predictions() -> list[Prediction]:
+async def fetch_predictions() -> list[Prediction]:
     query = 'SELECT id, preds FROM pred_tb'
-    predictions = database.fetchall(query)
-    return [Prediction(id=row[0], predictions=row[1]) for row in predictions]
+    predictions = await database.fetch_all(query)
+    pred_itm = [Prediction(id=row[0], predictions=row[1]) for row in predictions]
+    print(pred_itm)
+    return pred_itm
 
 templates = Jinja2Templates(directory="templates")
 
@@ -90,5 +92,5 @@ async def detect_and_return_image(request: Request):
     return templates.TemplateResponse("predictions.html", {"request": request})
 
 @app.get("/api/predicted/")
-async def detect_and_return_image(response_model=list[Prediction]):
-    return fetch_predictions()
+async def api_predicted(response_model=list[Prediction]):
+    return await fetch_predictions()
