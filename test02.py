@@ -31,7 +31,7 @@ La maladie du cacao Sana est une maladie grave qui peut entraîner des pertes de
 treat = str(treat)
 
 # query = f"INSERT INTO treatments_tb VALUES (3, 'Fitoftora', 'trhr');"
-query = f"UPDATE treatments_tb SET name = 'Sana', treat = '{treat}' WHERE id =3"
+query = f"UPDATE treatments_tb SET name = 'Monilia' WHERE id =2"
 
 # async def dbexc():
 #     await database.connect()

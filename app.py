@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Request
+from fastapi import FastAPI, File, UploadFile, Request, HTTPException
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -43,6 +43,20 @@ async def fetch_predictions() -> list[Prediction]:
     print(pred_itm)
     return pred_itm
 
+async def fetch_treatment_details(prediction_id: int):
+    preds = await database.fetch_one(f"SELECT preds FROM pred_tb WHERE id = {prediction_id};")
+    print(preds.preds)
+    pred_dic = json.loads(preds.preds)
+    treat_dic = {}
+    for p in pred_dic:
+        print(p)
+        treat = await database.fetch_one(f"SELECT treat FROM treatments_tb WHERE name = '{p}';")
+        treat_dic[p] = treat.treat
+    if treat_dic:
+        return json.dumps(treat_dic)
+    else:
+        raise HTTPException(status_code=404, detail="Treatment details not found")
+
 templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
@@ -78,12 +92,12 @@ async def detect_and_return_image(image_file: UploadFile = File(...)):
         prob_json[prob[0]] = prob[1]
     prob_json = json.dumps(prob_json)
     query = f"INSERT INTO pred_tb (image_file, preds) VALUES ('{str(image_uuid)}','{prob_json}');"
-    print(query)
     await database.execute(query=query)
 
     return {
         "annotated_image": detect.image_to_base64(annotated_image),
-        "class_prob": class_prob
+        "class_prob": class_prob,
+        "treatments": "treatments"
     }
 
 #for getting the predicted images list
@@ -94,3 +108,7 @@ async def detect_and_return_image(request: Request):
 @app.get("/api/predicted/")
 async def api_predicted(response_model=list[Prediction]):
     return await fetch_predictions()
+
+@app.get("/treatments/{pred_id}")
+async def get_treatment(pred_id:int):
+    return await fetch_treatment_details(pred_id)

@@ -35,8 +35,10 @@
 
         // Function to fetch details for a specific prediction
         async function fetchPredictionDetails(predictionId) {
-            const response = await fetch(`/prediction/${predictionId}`);
+            const response = await fetch(`/treatments/${predictionId}`);
+            console.log(response)
             const details = await response.text();
+            console.log(details)
 
             const detailsContainer = document.getElementById('detailsContainer');
             detailsContainer.innerHTML = details;
