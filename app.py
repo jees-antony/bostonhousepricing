@@ -44,8 +44,12 @@ async def fetch_predictions() -> list[Prediction]:
     return pred_itm
 
 async def fetch_treatment_details(prediction_id: int):
-    preds = await database.fetch_one(f"SELECT preds FROM pred_tb WHERE id = {prediction_id};")
-    print(preds.preds)
+    preds = await database.fetch_one(f"SELECT preds, image_file FROM pred_tb WHERE id = {prediction_id};")
+    print(preds.image_file)
+    image_file = preds.image_file
+    image_path = str(image_file) + ".png"
+    image_path = os.path.join("images", image_path)
+
     pred_dic = json.loads(preds.preds)
     treat_dic = {}
     for p in pred_dic:
@@ -53,7 +57,14 @@ async def fetch_treatment_details(prediction_id: int):
         treat = await database.fetch_one(f"SELECT treat FROM treatments_tb WHERE name = '{p}';")
         treat_dic[p] = treat.treat
     if treat_dic:
-        return json.dumps(treat_dic)
+        # print(json.loads(treat_dic))
+        # print(treat_dic)
+        # treat_dic = treat_dic.replace("\\", "")
+        treat_dic = json.dumps(treat_dic)
+        return {
+            "treatments": json.loads(treat_dic),
+            "image": detect.imagefile_to_base64(image_path)
+        }
     else:
         raise HTTPException(status_code=404, detail="Treatment details not found")
 
@@ -90,6 +101,19 @@ async def detect_and_return_image(image_file: UploadFile = File(...)):
     prob_json = {}
     for prob in class_prob:
         prob_json[prob[0]] = prob[1]
+
+    treat_dic = {}
+    for p in prob_json:
+        print(p)
+        treat = await database.fetch_one(f"SELECT treat FROM treatments_tb WHERE name = '{p}';")
+        treat_dic[p] = treat.treat
+    if treat_dic:
+        # print(json.loads(treat_dic))
+        # print(treat_dic)
+        # treat_dic = treat_dic.replace("\\", "")
+        treat_dic = json.dumps(treat_dic)
+        treat_dic = json.loads(treat_dic)
+
     prob_json = json.dumps(prob_json)
     query = f"INSERT INTO pred_tb (image_file, preds) VALUES ('{str(image_uuid)}','{prob_json}');"
     await database.execute(query=query)
@@ -97,7 +121,7 @@ async def detect_and_return_image(image_file: UploadFile = File(...)):
     return {
         "annotated_image": detect.image_to_base64(annotated_image),
         "class_prob": class_prob,
-        "treatments": "treatments"
+        "treatments": treat_dic
     }
 
 #for getting the predicted images list

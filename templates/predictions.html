@@ -5,6 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cocoa Disease Prediction AI App</title>
+    <style>
+        .value {
+            display: none; /* Hide the value part by default */
+            margin-left: 20px; /* Add some margin for better readability */
+        }
+    </style>
 </head>
 
 <body>
@@ -12,9 +18,13 @@
     <ul id="predictionsList">
         <!-- Predictions will be inserted here dynamically -->
     </ul>
+    <img id="annotatedImage" src="" alt="Annotated Image">
+    <br>
     <div id="detailsContainer">
         <!-- Details for selected prediction will be inserted here dynamically -->
     </div>
+
+    <div id="json-container"></div>
     
     <script>
         // Function to fetch predictions and populate the list
@@ -36,16 +46,52 @@
         // Function to fetch details for a specific prediction
         async function fetchPredictionDetails(predictionId) {
             const response = await fetch(`/treatments/${predictionId}`);
-            console.log(response)
-            const details = await response.text();
-            console.log(details)
+            const results = await response.json();
+            const details = results.treatments;
 
             const detailsContainer = document.getElementById('detailsContainer');
-            detailsContainer.innerHTML = details;
-        }
+            detailsContainer.innerHTML = '';
+
+            const annotatedImageUrl = `data:image/png;base64,${results.image}`;
+            document.getElementById('annotatedImage').src = annotatedImageUrl;
+
+            // Display the details
+            for (const key in details) {
+                if (details.hasOwnProperty(key)) {
+                    const value = details[key];
+                    const div = document.createElement('div');
+                    div.innerHTML = `<strong>${key}:</strong> ${value.replace(/\n/g, '<br>')}`;
+                    detailsContainer.appendChild(div);
+                }
+            }}
+
+            // Function to toggle visibility of value part
+                function toggleValue(key) {
+                    const valueDiv = document.getElementById(key);
+                    valueDiv.style.display = valueDiv.style.display === 'none' ? 'block' : 'none';
+                }
+
+                // Function to create dropdown items
+                function createDropdownItem(key, value) {
+                    const div = document.createElement('div');
+                    const dropdownItem = document.createElement('button');
+                    dropdownItem.textContent = key;
+                    dropdownItem.onclick = function () { toggleValue(key); };
+                    div.appendChild(dropdownItem);
+
+                    const valueDiv = document.createElement('div');
+                    valueDiv.className = 'value';
+                    valueDiv.innerHTML = value.replace(/\n/g, '<br>');
+                    valueDiv.id = key;
+                    div.appendChild(valueDiv);
+
+                    return div;
+                }
 
         // Call fetchPredictions when the page loads
         fetchPredictions();
+
+
     </script>
 </body>
 

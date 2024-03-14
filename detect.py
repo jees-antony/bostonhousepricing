@@ -1,5 +1,5 @@
 from ultralytics import YOLO
-from PIL import ImageDraw
+from PIL import ImageDraw, Image
 from io import BytesIO
 from starlette.responses import StreamingResponse
 import base64
@@ -62,3 +62,10 @@ def image_to_base64(image):
     buffered = BytesIO()
     image.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+def imagefile_to_base64(image_path):
+    with open(image_path, 'rb') as img_file:
+        image = Image.open(img_file)
+        buffered = BytesIO()
+        image.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode('utf-8')
