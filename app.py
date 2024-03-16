@@ -1,18 +1,21 @@
-from fastapi import FastAPI, File, UploadFile, Request, HTTPException
+from fastapi import FastAPI, File, UploadFile, Request, HTTPException, Depends
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
+from fastapi.security import OAuth2PasswordBearer
 from typing import List
 from PIL import Image
 import json
 from io import BytesIO
-import detect   #detect.py
 import uuid
 import os
-from databases import Database
+from database import database
 from pydantic import BaseModel
+import jwt
 
-database = Database("sqlite:///cocoa-ml.db")
+import detect   #detect.py
+import auth
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     #On Startup
@@ -22,6 +25,13 @@ async def lifespan(app: FastAPI):
     await database.disconnect()
 
 app = FastAPI(lifespan=lifespan)
+
+templates = Jinja2Templates(directory="templates")
+
+# Secret key to sign JWT token
+SECRET_KEY = "mysecretkey"
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 class Prediction(BaseModel):
     id: int
@@ -67,12 +77,26 @@ async def fetch_treatment_details(prediction_id: int):
         }
     else:
         raise HTTPException(status_code=404, detail="Treatment details not found")
-
-templates = Jinja2Templates(directory="templates")
+# Function to verify JWT token
+def verify_token(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return username
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 @app.get("/")
-async def home(request: Request):
+async def home(request: Request, token: str = Depends(verify_token)):
     return templates.TemplateResponse("home.html", {"request": request})
+
+@app.get("/login/")
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/detect")
 async def detect_and_return_image(image_file: UploadFile = File(...)):
@@ -136,3 +160,48 @@ async def api_predicted(response_model=list[Prediction]):
 @app.get("/treatments/{pred_id}")
 async def get_treatment(pred_id:int):
     return await fetch_treatment_details(pred_id)
+
+
+# Example endpoint for user registration
+@app.post("/register")
+async def register(username: str, password: str):
+    # Check if the username already exists in the database
+    existing_user = await database.fetch_one(f"SELECT username FROM users WHERE username = '{username}'")
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already exists")
+
+    # Save the new user to the database
+    auth.save_user(username, password)
+    return {"message": "User registered successfully"}
+
+class LoginCredentials(BaseModel):
+    username: str
+    password: str
+# token creation on login
+@app.post("/token")
+async def login(credentials: LoginCredentials):
+    username = credentials.username
+    password = credentials.password
+
+    if not auth.authenticate_user(username, password):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    token = auth.create_jwt_token(username)
+    return {"access_token": token, "token_type": "bearer"}
+
+# to get username who is logged in with token
+@app.get("/users/me")
+async def read_users_me(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return {"username": username}
+
+@app.get("/users/get")
+async def read_users_me(token: str = Depends(verify_token)):
+    return "you are authorised"

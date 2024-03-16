@@ -1,0 +1,39 @@
+<!-- Login Page -->
+<form id="loginForm">
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button type="submit">Login</button>
+</form>
+
+<script>
+    document.getElementById('loginForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const response = await fetch('/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (!response.ok) {
+                throw new Error('Invalid username or password');
+            }
+
+            const { access_token } = await response.json();
+
+            // Store token in localStorage
+            localStorage.setItem('token', access_token);
+
+            // Redirect to another page or perform other actions
+            window.location.href = '/'; // Example: Redirect to dashboard page
+        } catch (error) {
+            console.error('Login failed:', error);
+        }
+    });
+</script>
