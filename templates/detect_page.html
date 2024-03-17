@@ -27,11 +27,23 @@
     <script>
         async function fetchData() {
             try {
+                // Check if the user is logged in
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    // If not logged in, display a popup
+                    alert('You are not logged in.');
+                    return;
+                }
+
                 const formData = new FormData();
                 formData.append('image_file', document.getElementById('imageFile').files[0]);
 
-                const response = await fetch('http://localhost:8000/detect', {
+                const headers = new Headers();
+                headers.append('Authorization', `Bearer ${token}`);
+
+                const response = await fetch('http://localhost:8000/detect_api', {
                     method: 'POST',
+                    headers: headers,
                     body: formData
                 });
 

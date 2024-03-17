@@ -91,15 +91,15 @@ def verify_token(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Invalid token")
 
 @app.get("/")
-async def home(request: Request, token: str = Depends(verify_token)):
-    return templates.TemplateResponse("home.html", {"request": request})
-
-@app.get("/login/")
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
-@app.post("/detect")
-async def detect_and_return_image(image_file: UploadFile = File(...)):
+@app.get("/detect")
+async def detect_page(request: Request):
+    return templates.TemplateResponse("detect_page.html", {"request": request})
+
+@app.post("/detect_api")
+async def detect_and_return_image(image_file: UploadFile = File(...), token: str = Depends(verify_token)):
     """
     Handler of /detect POST endpoint
     Receives uploaded file with a name "image_file",
@@ -154,11 +154,11 @@ async def detect_and_return_image(request: Request):
     return templates.TemplateResponse("predictions.html", {"request": request})
 
 @app.get("/api/predicted/")
-async def api_predicted(response_model=list[Prediction]):
+async def api_predicted(token: str = Depends(verify_token), response_model=list[Prediction]):
     return await fetch_predictions()
 
 @app.get("/treatments/{pred_id}")
-async def get_treatment(pred_id:int):
+async def get_treatment(pred_id:int, token: str = Depends(verify_token)):
     return await fetch_treatment_details(pred_id)
 
 
@@ -177,6 +177,7 @@ async def register(username: str, password: str):
 class LoginCredentials(BaseModel):
     username: str
     password: str
+
 # token creation on login
 @app.post("/token")
 async def login(credentials: LoginCredentials):
@@ -202,6 +203,6 @@ async def read_users_me(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Invalid token")
     return {"username": username}
 
-@app.get("/users/get")
-async def read_users_me(token: str = Depends(verify_token)):
-    return "you are authorised"
+# @app.get("/users/get")
+# async def read_users_me(token: str = Depends(verify_token)):
+#     return "you are authorised"

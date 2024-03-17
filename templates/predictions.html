@@ -10,6 +10,11 @@
             display: none; /* Hide the value part by default */
             margin-left: 20px; /* Add some margin for better readability */
         }
+        #logoutButton {
+            position: absolute;
+            left: 800px; /* Adjust this value to position the button as desired */
+            top: 10px; /* Adjust this value to position the button as desired */
+        }
     </style>
 </head>
 
@@ -18,6 +23,7 @@
     <ul id="predictionsList">
         <!-- Predictions will be inserted here dynamically -->
     </ul>
+    <button onclick="logout()" id="logoutButton">Logout</button>
     <img id="annotatedImage" src="" alt="Annotated Image">
     <br>
     <div id="detailsContainer">
@@ -29,7 +35,20 @@
     <script>
         // Function to fetch predictions and populate the list
         async function fetchPredictions() {
-            const response = await fetch('/api/predicted/');
+            // Check if the user is logged in
+            const token = localStorage.getItem('token');
+            if (!token) {
+                // If not logged in, display a popup
+                alert('You are not logged in.');
+                return;
+            }
+            const headers = new Headers();
+            headers.append('Authorization', `Bearer ${token}`);
+
+            const response = await fetch('/api/predicted/', {
+                method: 'GET',
+                headers: headers
+            });
             const predictions = await response.json();
             console.log(predictions)
 
@@ -45,7 +64,20 @@
 
         // Function to fetch details for a specific prediction
         async function fetchPredictionDetails(predictionId) {
-            const response = await fetch(`/treatments/${predictionId}`);
+            // Check if the user is logged in
+            const token = localStorage.getItem('token');
+            if (!token) {
+                // If not logged in, display a popup
+                alert('You are not logged in.');
+                return;
+            }
+            const headers = new Headers();
+            headers.append('Authorization', `Bearer ${token}`);
+
+            const response = await fetch(`/treatments/${predictionId}`, {
+                method: 'GET',
+                headers: headers
+            });
             const results = await response.json();
             const details = results.treatments;
 
@@ -87,6 +119,12 @@
 
                     return div;
                 }
+
+        function logout() {
+                // Clear the authentication token from localStorage
+                localStorage.removeItem('token');
+                alert('Logged out successfully.');
+            }
 
         // Call fetchPredictions when the page loads
         fetchPredictions();
