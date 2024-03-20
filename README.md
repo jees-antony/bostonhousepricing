@@ -1,7 +1,5 @@
 ## Cocoa Disease prediction ML App
 
-### Software And Tools Requirements
+To register users - need to use app_link/docs
 
-
-Create a new environment
 

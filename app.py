@@ -167,11 +167,12 @@ async def get_treatment(pred_id:int, token: str = Depends(verify_token)):
 async def register(username: str, password: str):
     # Check if the username already exists in the database
     existing_user = await database.fetch_one(f"SELECT username FROM users WHERE username = '{username}'")
+    print(existing_user)
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")
 
     # Save the new user to the database
-    auth.save_user(username, password)
+    await auth.save_user(username, password)
     return {"message": "User registered successfully"}
 
 class LoginCredentials(BaseModel):
@@ -184,7 +185,7 @@ async def login(credentials: LoginCredentials):
     username = credentials.username
     password = credentials.password
 
-    if not auth.authenticate_user(username, password):
+    if not await auth.authenticate_user(username, password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
     token = auth.create_jwt_token(username)
     return {"access_token": token, "token_type": "bearer"}

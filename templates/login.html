@@ -13,7 +13,7 @@
         const password = document.getElementById('password').value;
 
         try {
-            const response = await fetch('/token', {
+            const response = await fetch('/token/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -31,7 +31,7 @@
             localStorage.setItem('token', access_token);
 
             // Redirect to another page or perform other actions
-            window.location.href = '/login/'; // Example: Redirect to dashboard page
+            window.location.href = '/detect/'; // Example: Redirect to dashboard page
         } catch (error) {
             console.error('Login failed:', error);
         }
