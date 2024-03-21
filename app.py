@@ -127,21 +127,37 @@ async def detect_and_return_image(image_file: UploadFile = File(...), token: str
         prob_json[prob[0]] = prob[1]
 
     treat_dic = {}
-    for p in prob_json:
-        print(p)
-        treat = await database.fetch_one(f"SELECT treat FROM treatments_tb WHERE name = '{p}';")
-        treat_dic[p] = treat.treat
+    for disea, prob in prob_json.items():
+        print(disea)
+        treat = await database.fetch_one(f"SELECT treat FROM disease_tb WHERE disease = '{disea}';")
+        treat_dic[disea] = treat.treat
     if treat_dic:
         # print(json.loads(treat_dic))
         # print(treat_dic)
         # treat_dic = treat_dic.replace("\\", "")
         treat_dic = json.dumps(treat_dic)
         treat_dic = json.loads(treat_dic)
-
+    #here goes the db manage part, insert into preds_tb and get the preds id
     prob_json = json.dumps(prob_json)
-    query = f"INSERT INTO pred_tb (image_file, preds) VALUES ('{str(image_uuid)}','{prob_json}');"
-    await database.execute(query=query)
 
+    username = token
+    query = f'''
+                WITH user_info AS (
+                SELECT id AS user_id
+                FROM users
+                WHERE username = '{username}'
+            ), inserted_rows AS (
+                INSERT INTO preds_tb (pred_user_id)
+                SELECT user_id FROM user_info
+                RETURNING id
+            ), predicted_image_insert AS (
+                INSERT INTO pred_images (pred_id, pred_img_file)
+                SELECT id, '{image_uuid}' FROM inserted_rows
+            )
+            SELECT id FROM inserted_rows;'''
+
+    pred_id = await database.execute(query=query)
+    print(pred_id)
     return {
         "annotated_image": detect.image_to_base64(annotated_image),
         "class_prob": class_prob,
@@ -191,7 +207,8 @@ async def login(credentials: LoginCredentials):
     return {"access_token": token, "token_type": "bearer"}
 
 # to get username who is logged in with token
-@app.get("/users/me")
+# @app.get("/users/me")
+# async def read_users_me(token: str = Depends(oauth2_scheme)):
 async def read_users_me(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -202,7 +219,7 @@ async def read_users_me(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
-    return {"username": username}
+    return {username}
 
 # @app.get("/users/get")
 # async def read_users_me(token: str = Depends(verify_token)):
