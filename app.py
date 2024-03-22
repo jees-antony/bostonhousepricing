@@ -121,25 +121,7 @@ async def detect_and_return_image(image_file: UploadFile = File(...), token: str
     # save image as PNG
     annotated_image.save(image_path)
 
-    # inser image file name and predictions into DB
-    prob_json = {}
-    for prob in class_prob:
-        prob_json[prob[0]] = prob[1]
-
-    treat_dic = {}
-    for disea, prob in prob_json.items():
-        print(disea)
-        treat = await database.fetch_one(f"SELECT treat FROM disease_tb WHERE disease = '{disea}';")
-        treat_dic[disea] = treat.treat
-    if treat_dic:
-        # print(json.loads(treat_dic))
-        # print(treat_dic)
-        # treat_dic = treat_dic.replace("\\", "")
-        treat_dic = json.dumps(treat_dic)
-        treat_dic = json.loads(treat_dic)
-    #here goes the db manage part, insert into preds_tb and get the preds id
-    prob_json = json.dumps(prob_json)
-
+    # inser image file name and predictions id into DB
     username = token
     query = f'''
                 WITH user_info AS (
@@ -155,8 +137,38 @@ async def detect_and_return_image(image_file: UploadFile = File(...), token: str
                 SELECT id, '{image_uuid}' FROM inserted_rows
             )
             SELECT id FROM inserted_rows;'''
-
+    #return pred-id for current predition
     pred_id = await database.execute(query=query)
+
+    #inserting disease and proba into db
+    prob_json = {}
+    for prob in class_prob:
+        prob_json[prob[0]] = prob[1]
+
+    treat_dic = {}
+    for disea, prob in prob_json.items():
+        print(disea)
+        disea_rec = await database.fetch_one(f"SELECT id, treat FROM disease_tb WHERE disease = '{disea}';")
+        print(f"disease rec: {disea_rec}")
+
+        if disea_rec:
+            disea_id, treat = disea_rec.id, disea_rec.treat
+            print(f"disease id: {disea_id}, treat : {treat[:50]}")
+        else:
+            continue
+
+        treat_dic[disea] = treat
+
+        await database.execute(
+        f"INSERT INTO pred_diseases (pred_id, disease_id, proba) VALUES ({pred_id}, '{disea_id}', {prob});"
+    )
+        
+    if treat_dic:
+        treat_dic = json.dumps(treat_dic)
+        treat_dic = json.loads(treat_dic)
+
+    prob_json = json.dumps(prob_json)
+
     print(pred_id)
     return {
         "annotated_image": detect.image_to_base64(annotated_image),
