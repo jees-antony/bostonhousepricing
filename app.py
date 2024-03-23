@@ -12,6 +12,7 @@ import os
 from database import database
 from pydantic import BaseModel
 import jwt
+import ast
 
 import detect   #detect.py
 import auth
@@ -47,24 +48,46 @@ app.add_middleware(
 )
 
 async def fetch_predictions() -> list[Prediction]:
-    query = 'SELECT id, preds FROM pred_tb'
+    query = '''SELECT
+                pd.pred_id AS id,
+                jsonb_object_agg(d.disease, pd.proba::text) AS predictions
+                FROM pred_diseases pd
+                JOIN disease_tb d ON pd.disease_id = d.id
+                GROUP BY pd.pred_id;'''
+    
     predictions = await database.fetch_all(query)
-    pred_itm = [Prediction(id=row[0], predictions=row[1]) for row in predictions]
+    # pred_itm = [Prediction(id=row[0], predictions=row[1]) for row in predictions]
+    pred_itm = predictions
     print(pred_itm)
     return pred_itm
 
 async def fetch_treatment_details(prediction_id: int):
-    preds = await database.fetch_one(f"SELECT preds, image_file FROM pred_tb WHERE id = {prediction_id};")
-    print(preds.image_file)
-    image_file = preds.image_file
+    query = f'''SELECT
+        pd.pred_id AS id,
+        jsonb_build_object(d.disease, pd.proba::text) AS predictions,
+        pi.pred_img_file
+        FROM pred_diseases pd
+        JOIN disease_tb d ON pd.disease_id = d.id
+        JOIN pred_images pi ON pd.pred_id = pi.pred_id
+        WHERE pd.pred_id = {prediction_id};'''
+    
+    preds = await database.fetch_all(query)
+    print(type(preds[0].predictions))
+    image_file = preds[0].pred_img_file
     image_path = str(image_file) + ".png"
     image_path = os.path.join("images", image_path)
 
-    pred_dic = json.loads(preds.preds)
+    p_dic = {}
+
+    for p in preds:
+        p_dic.update(ast.literal_eval(p.predictions))
+    print(f"result: {p_dic}")
+
+    pred_dic = p_dic
     treat_dic = {}
     for p in pred_dic:
         print(p)
-        treat = await database.fetch_one(f"SELECT treat FROM treatments_tb WHERE name = '{p}';")
+        treat = await database.fetch_one(f"SELECT treat FROM disease_tb WHERE disease = '{p}';")
         treat_dic[p] = treat.treat
     if treat_dic:
         # print(json.loads(treat_dic))
@@ -219,8 +242,6 @@ async def login(credentials: LoginCredentials):
     return {"access_token": token, "token_type": "bearer"}
 
 # to get username who is logged in with token
-# @app.get("/users/me")
-# async def read_users_me(token: str = Depends(oauth2_scheme)):
 async def read_users_me(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -232,7 +253,3 @@ async def read_users_me(token: str = Depends(oauth2_scheme)):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
     return {username}
-
-# @app.get("/users/get")
-# async def read_users_me(token: str = Depends(verify_token)):
-#     return "you are authorised"
